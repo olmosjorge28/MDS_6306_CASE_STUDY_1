@@ -1,0 +1,103 @@
+---
+title: "Case Study 1"
+author: "Jorge Olmos, Jonathan Roach"
+date: "10/19/2019"
+output:
+  slidy_presentation: default
+  beamer_presentation: default
+  ioslides_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tm) #text mining library provides the stopwords() function
+library(tidyr)
+library(plyr)
+library(jsonlite)
+library(dplyr)
+library(tidyverse)
+library(RCurl)
+library(e1071)
+library(caret)
+library(ggplot2)
+library(kableExtra)
+beers_data = read.csv("Beers.csv", header = TRUE);
+brewery_data = read.csv("Breweries.csv", header = TRUE);
+colnames(brewery_data)[1] = "Brewery_id"
+colnames(beers_data)[1] = "beer_name"
+colnames(brewery_data)[2] = "brewery_name"
+beers_brewery_merge = merge(beers_data,brewery_data,"Brewery_id")
+beers_brewery_merge = na.omit(beers_brewery_merge)
+```
+
+## How many breweries are present in each state?
+
+```{r brewery_data, echo = TRUE}
+library(knitr)
+state_count <- beers_brewery_merge %>% group_by(State) %>% tally()
+kable(state_count, booktabs = T) %>% kable_styling(font_size = 7,position = "left")
+```
+
+
+## Median ABV and IBU for each state. Plot a bar chart to compare.
+
+```{r}
+ABV_IBU_STATE <- aggregate(x = beers_brewery_merge[c("ABV","IBU")], by = beers_brewery_merge[c("State")], FUN = median, na.action = na.rm)
+kable(ABV_IBU_STATE, booktabs = T) %>% kable_styling(font_size = 7,position = "left")
+
+```
+
+
+
+## ABV By State
+
+```{r}
+
+p<-ggplot(data=ABV_IBU_STATE, aes(x=State, y=ABV)) +
+  geom_bar(stat="identity")
+p
+```
+
+## IBU By State
+
+
+```{r}
+p<-ggplot(data=ABV_IBU_STATE, aes(x=State, y=IBU)) +
+  geom_bar(stat="identity")
+p
+
+```
+
+
+
+
+## Which state has the maximum alcoholic (ABV) beer?
+
+```{r, echo = TRUE}
+kable(beers_brewery_merge[which.max(beers_brewery_merge$ABV),]) #KY
+
+```
+
+
+
+## Which state has the most bitter (IBU) beer?
+```{r}
+kable(beers_brewery_merge[which.max(beers_brewery_merge$IBU),]) #OR
+```
+
+
+## Summary statistics and distribution of the ABV variable.
+
+```{r}
+summary(beers_brewery_merge$ABV)
+```
+
+
+
+## Slide show relationship between bitterness and alcoholic content
+
+Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
+```{r}
+beers_brewery_merge %>% ggplot(aes(x = ABV, y = IBU)) + geom_point()
+```
+
