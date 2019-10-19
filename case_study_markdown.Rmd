@@ -51,19 +51,16 @@ kable(ABV_IBU_STATE, booktabs = T) %>% kable_styling(font_size = 7,position = "l
 
 ## ABV By State
 
-```{r}
-
+```{r, out.width='95%'}
 p<-ggplot(data=ABV_IBU_STATE, aes(x=State, y=ABV)) +
-  geom_bar(stat="identity")
+  geom_bar(stat="identity") +  labs(title ="ABV By State")
 p
 ```
 
 ## IBU By State
-
-
-```{r}
+```{r, out.width='95%'}
 p<-ggplot(data=ABV_IBU_STATE, aes(x=State, y=IBU)) +
-  geom_bar(stat="identity")
+  geom_bar(stat="identity") + labs(title ="IBU By State")
 p
 
 ```
@@ -96,8 +93,7 @@ summary(beers_brewery_merge$ABV)
 
 ## Slide show relationship between bitterness and alcoholic content
 
-Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
 ```{r}
-beers_brewery_merge %>% ggplot(aes(x = ABV, y = IBU)) + geom_point()
+beers_brewery_merge %>% ggplot(aes(x = ABV, y = IBU)) + geom_point() + geom_smooth(method = "lm") +  labs(title ="ABV vs. IBU")
 ```
 
