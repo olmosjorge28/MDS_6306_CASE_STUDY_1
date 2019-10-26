@@ -86,8 +86,8 @@ Which state has the most breweries? Answer to question #1.
 head(
 breweries %>%
   group_by(State) %>%
-  summarize(count=n()) %>%
-  arrange(desc(count))
+  count() %>% select(State,freq) %>%
+  arrange(desc(freq))
 )
 ```
 
