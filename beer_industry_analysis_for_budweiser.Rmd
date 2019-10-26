@@ -176,6 +176,7 @@ summary(beers_brewery_merge_style[beers_brewery_merge_style$brew_style == "Other
 beers_brewery_merge_style %>% ggplot(aes(x=ABV)) + geom_histogram(fill = "#dc322f")  +  theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + facet_wrap(~brew_style)
 
 ```
+
 ## Modeling the classification of Style based on ABV and IBU
 
   We wanted to investigate how accurately we could predict if a beer is an IPA or an Ale based solely on its ABV and it's IBU. As shown below we can see that our model can predict with an 85% accuracy wether a beer is an IPA or an ALE, assuming the closest 5 nearest neighboring data points 
@@ -257,15 +258,14 @@ test_with_prediction %>% summarise(total_abs_err=sum(abs_error),  mean_abs_error
 
 data_with_imputed_ibus <- beers_brewery_merge_style %>%filter(!is.na(ABV)) %>% mutate(state2 = fct_lump(State, 15)) %>%  
   add_predictions(model) %>% 
-  mutate(abs_error=abs(IBU - pred), IBU_imputed = if_else(is.na(IBU), as.numeric(round(pred)), as.numeric(IBU)), imputed_ind = factor(if_else(is.na(IBU),"Imputed IBU", "Real IBU")) ) 
+  mutate(abs_error=abs(IBU - pred), IBU_imputed = if_else(is.na(IBU), as.numeric(round(pred)), as.numeric(IBU)), imputed_ind = factor(if_else(is.na(IBU),"Imputed IBU", "Real IBU")) )
 
 data_with_imputed_ibus  %>%
   filter(IBU_imputed > 0) %>%
   ggplot(aes(ABV, IBU_imputed, color = imputed_ind)) +
     theme(legend.title = element_blank()) +
     geom_point() +
-    facet_wrap(~brew_style) + theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') +  
-    labs(x="ABV", 
+    facet_wrap(~brew_style) + theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + scale_color_manual(values= solarized_pal()(3)) +   labs(x="ABV", 
          y="IBU",
          title="ABV vs. IBU by Beer Style")
 
