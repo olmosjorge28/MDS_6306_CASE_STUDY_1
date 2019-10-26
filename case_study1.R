@@ -81,6 +81,42 @@ head(iris)
 classifications = knn(train[,c(1)],test[,c(1)],train$Species, prob = TRUE, k = 5)
 
 
+
+create_model <- function(train_data,columns,classifications){
+  model <- naiveBayes(train_data[,columns],train_data[,classifications])
+  return(model)
+}
+
+test_model <- function(model,test_data,columns,classifications){
+  CM = confusionMatrix(table(predict(model,test_data[,columns]),test_data[,classifications]))
+  return(c(CM$overall[1],CM$byClass[1],CM$byClass[2]))
+}
+
+create_and_test_model <- function(dataset,columns,classifications,ratio,seed = as.numeric(Sys.time())){
+  train_indeces <- generate_train_indices(dataset,ratio,seed);
+  train_data <- dataset[train_indeces,]
+  test_data <- dataset[-train_indeces,]
+  return(test_model(create_model(train_data,columns,classifications),test_data,columns,classifications))
+}
+
+prediction <- function(dataset,columns,classifications,ratio,iterations){
+  master_acc = matrix(nrow = iterations)
+  master_specificity = matrix(nrow = iterations)
+  master_sensitivity = matrix(nrow = iterations)
+  
+  for(i in 1:iterations){
+    test_result = create_and_test_model(dataset,columns,classifications,ratio)
+    master_acc[i] = test_result[1]
+    master_sensitivity[i] = test_result[2]
+    master_specificity[i] = test_result[3]
+  }
+  return(c(colMeans(master_acc),colMeans(master_specificity),colMeans(master_sensitivity)))
+}
+
+
+prediction(iris,c(1,2),c("Species"), .7, 100)
+
+
   
 
 

@@ -142,8 +142,10 @@ style_detector <- Vectorize(function(input){
 
 beers_brewery_merge_style <- beers_brewery_merge %>% mutate(brew_style = style_detector(Style))
 
+beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100)
+
 p<-beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100) %>%
-  ggplot() + geom_bar(aes(y=count,x=brew_style, fill=brew_style), stat = "identity") 
+  ggplot() + geom_bar(aes(y=percent,x=brew_style, fill=brew_style), stat = "identity") 
 
 p
 
@@ -164,6 +166,7 @@ library(e1071)
 head(beers_brewery_merge_style)
 beers_with_ibu <- beers_brewery_merge_style[!is.na(beers_brewery_merge_style$IBU),]
 beers_with_abv <- beers_brewery_merge_style[!is.na(beers_brewery_merge_style$ABV),]
+omitted_nas <- na.omit(beers_brewery_merge_style)
 
 generate_train_indices <- function(data,test_ratio,seed= as.numeric(Sys.time())){
     set.seed(seed)
@@ -171,15 +174,6 @@ generate_train_indices <- function(data,test_ratio,seed= as.numeric(Sys.time()))
     trainInd = sample(seq(1,dim(data)[1],1),round(test_ratio*dim(data)[1]))
     return(trainInd);
 }
-
-set.seed(1)
-splitPerc = .7
-iterations = 3
-numks = 90
-
-masterAcc = matrix(nrow = iterations, ncol = numks)
-
-generate_train_indices(beers_with_ibu,.7)
 
 
 knn_test <- function(data,columns,classifications,ratio, iterations, numks){
@@ -197,17 +191,29 @@ knn_test <- function(data,columns,classifications,ratio, iterations, numks){
   }
   return(masterAcc)
 }
-  
- MeanAcc = colMeans(knn_test(omitted_nas,c("IBU","ABV"),c("brew_style"), .7, 100, 50))
+ head(omitted_nas)
+ MeanAcc = colMeans(knn_test(omitted_nas,c("IBU","ABV"),c("brew_style"), .7, 1000, 50))
  
  which.max(MeanAcc)
  max(MeanAcc)
  MeanAcc[36]
  
  plot(seq(1,50,1),MeanAcc,type="l",main="Accuracy vs. K", xlab="K Size", ylab="Accuracy")
+ 
+ ipa_ales_only <- omitted_nas[omitted_nas$brew_style!="Other",]
+ 
+  MeanAcc = colMeans(knn_test(ipa_ales_only,c("IBU","ABV"),c("brew_style"), .7, 1000, 50))
+ 
+ which.max(MeanAcc)
+ max(MeanAcc)
+ 
+ plot(seq(1,50,1),MeanAcc,type="l",main="Accuracy vs. K", xlab="K Size", ylab="Accuracy")
 
+```
 
-
+ 
+## Bayse model example
+```{r}
 create_model <- function(train_data,columns,classifications){
     model <- naiveBayes(train_data[,columns],train_data[,classifications])
     return(model)
@@ -240,5 +246,66 @@ prediction <- function(dataset,columns,classifications,ratio,iterations){
 }
 
 
-prediction(omitted_nas,c("IBU","ABV"),c("brew_style"), .7, 100)
+prediction(omitted_nas,c(4,5),c("brew_style"), .7, 100)
 ```
+
+
+## Summarizing by brewery
+
+
+```{r}
+
+brewery_size <-  Vectorize(function(count){
+  size="L"
+  if(count<10){
+    size = "S"
+  }else if(count >=10 && count < 20){
+    size = "M"
+  }
+  return(size)
+})
+
+brewery_size(20)
+beers_brewery_merge_style %>% group_by(brewery_name) %>% dplyr::summarize(count=n()) %>% mutate(brewery_size=brewery_size(count)) 
+
+beers_brewery_merge_style %>% group_by(brewery_name) %>% dplyr::summarize(count=n()) %>% mutate(brewery_size=brewery_size(count)) %>% ggplot() + geom_bar(aes(y=count,x=brewery_size, fill=brewery_size), stat = "identity") 
+
+
+brewer_size_data <- beers_brewery_merge_style %>% group_by(brewery_name) %>% dplyr::summarize(count=n()) %>% mutate(brewery_size=brewery_size(count)) 
+
+merged_data_with_brewery_size = merge(beers_brewery_merge_style,brewer_size_data,"brewery_name")
+
+
+na.omit(merged_data_with_brewery_size) %>%  ggplot(aes(x = ABV, y = IBU, color=brewery_size)) + geom_point() + geom_smooth(method = "lm") + facet_wrap(~brew_style) +  labs(title ="ABV vs. IBU")
+
+
+merged_data_with_brewery_size %>%  ggplot(aes( y = IBU, color=brewery_size)) + geom_boxplot() + facet_wrap(~brew_style)
+
+
+na.omit(merged_data_with_brewery_size) %>%  ggplot(aes( y = ABV, color=brewery_size)) + geom_boxplot() + facet_wrap(~brew_style)
+
+
+
+
+
+
+
+
+
+usa = map_data("state")
+
+state_count
+ggplot() + 
+  geom_polygon(data = usa, aes(x = long, y = lat, group = group), fill = "blue", color = "black") + 
+  coord_quickmap()
+
+
+plot_usmap(data = state_count, values = State, color = "red") + 
+  scale_fill_continuous(name = "Population (2015)", label = scales::comma) + 
+  theme(legend.position = "right")
+
+
+
+
+```
+
