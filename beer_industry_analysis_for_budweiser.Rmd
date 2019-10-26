@@ -146,7 +146,7 @@ beers_brewery_merge_style <- beers_brewery_merge %>% mutate(brew_style = style_d
 kable(beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100))
 
 beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100) %>%
-  ggplot() + geom_bar(aes(y=percent,x=brew_style, fill=brew_style), stat = "identity") +  theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + scale_fill_manual(values= solarized_pal()(3))
+  ggplot() + geom_bar(aes(y=percent,x=brew_style, fill=brew_style), stat = "identity") +  theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + scale_fill_manual(values= solarized_pal()(3)) + labs(x="Brew Style", y="Perecent of Total (%)", title="Frequency of Brew Styles")
 
 ```
 
