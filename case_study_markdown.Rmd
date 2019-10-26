@@ -22,6 +22,7 @@ library(e1071)
 library(caret)
 library(ggplot2)
 library(kableExtra)
+library(modelr)
 beers_data = read.csv("Beers.csv", header = TRUE);
 brewery_data = read.csv("Breweries.csv", header = TRUE);
 colnames(brewery_data)[1] = "Brewery_id"
