@@ -22,6 +22,7 @@ library(class)
 library(caret)
 library(e1071)
 library(modelr)
+library(ggthemes)
 ```
 
 ## Overview
@@ -42,7 +43,7 @@ colnames(brewery_data)[1] = "Brewery_id"
 colnames(beers_data)[1] = "beer_name"
 colnames(brewery_data)[2] = "brewery_name"
 state_count <- brewery_data %>% group_by(State) %>% dplyr::summarize(count=n())  
-state_count %>% ggplot() + geom_bar(aes(y=count,x=reorder(State, -count)), stat = "identity") + theme(axis.text.x = element_text(angle = 90)) 
+state_count %>% ggplot() + geom_bar(aes(y=count,x=reorder(State, -count)), stat = "identity",fill = "#cb4b16") + theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + theme(axis.text.x = element_text(angle = 90)) + labs(x="State", y="Count", title="Breweries by State")
 ```
 
 
@@ -55,8 +56,8 @@ state_count %>% ggplot() + geom_bar(aes(y=count,x=reorder(State, -count)), stat 
 beers_brewery_merge = merge(beers_data,brewery_data,"Brewery_id")
 beers_with_abv <- beers_brewery_merge[!is.na(beers_brewery_merge$ABV),] #removing na's from ABV column
 ABV_STATE <- aggregate(x = beers_with_abv[c("ABV")], by = beers_with_abv[c("State")], FUN = median)
-ABV_STATE %>% ggplot(aes(x=reorder(State, -ABV), y=ABV)) + theme(axis.text.x = element_text(angle = 90)) +
-  geom_bar(stat="identity") +  labs(title ="ABV By State", x= "State", y = "Acohol By Volume" )
+ABV_STATE %>% ggplot(aes(x=reorder(State, -ABV), y=ABV))  +
+  geom_bar(stat="identity",fill = "#cb4b16") + theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + theme(axis.text.x = element_text(angle = 90)) + labs(title ="ABV By State", x= "State", y = "Acohol By Volume" )
 
 ```
 
@@ -71,8 +72,8 @@ ABV_STATE %>% ggplot(aes(x=reorder(State, -ABV), y=ABV)) + theme(axis.text.x = e
 ```{r}
 beers_with_ibu <- beers_brewery_merge[!is.na(beers_brewery_merge$IBU),] #removing na's from IBU column
 IBU_STATE <- aggregate(x = beers_with_ibu[c("IBU")], by = beers_with_ibu[c("State")], FUN = median)
-IBU_STATE %>% ggplot(aes(x=reorder(State, -IBU), y=IBU)) + theme(axis.text.x = element_text(angle = 90)) +
-  geom_bar(stat="identity") +  labs(title ="IBU By State", x= "State", y = "Internal Bitterness Units" )
+IBU_STATE %>% ggplot(aes(x=reorder(State, -IBU), y=IBU)) +
+  geom_bar(stat="identity", fill = "#cb4b16") + theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + theme(axis.text.x = element_text(angle = 90)) + labs(title ="IBU By State", x= "State", y = "Internal Bitterness Units" )
 
 
 
@@ -105,8 +106,7 @@ kable(beers_brewery_merge[which.max(beers_brewery_merge$IBU),])
 ```{r}
 
 summary(beers_with_abv$ABV)
-beers_with_abv %>% ggplot(aes(x=ABV)) + geom_histogram() + labs(title="Distribution of beers by ABV", x="Alcohol By Volume", y = "N")
-
+beers_with_abv %>% ggplot(aes(x=ABV)) + geom_histogram(fill = "#cb4b16")  + theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + labs(title="Distribution of beers by ABV", x="Alcohol By Volume", y = "N")
 
 
 
@@ -119,8 +119,8 @@ beers_with_abv %>% ggplot(aes(x=ABV)) + geom_histogram() + labs(title="Distribut
 ```{r}
 na.omit(beers_brewery_merge) %>%
   ggplot(aes(x=ABV, y=IBU)) +
-    geom_point() +
-    geom_smooth(method = "lm", se = FALSE) +
+    geom_point(color="#cb4b16") +
+    geom_smooth(method = "lm", se = FALSE)  + theme_solarized_2(light=FALSE) + scale_colour_solarized('blue')  + 
     labs(title = "Relationship Between Alcohol by Volume and Bitterness")
 ```
 
@@ -146,8 +146,7 @@ beers_brewery_merge_style <- beers_brewery_merge %>% mutate(brew_style = style_d
 kable(beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100))
 
 beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100) %>%
-  ggplot() + geom_bar(aes(y=percent,x=brew_style, fill=brew_style), stat = "identity") 
-
+  ggplot() + geom_bar(aes(y=percent,x=brew_style, fill=brew_style), stat = "identity") +  theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + scale_color_manual(values= solarized_pal()(3))
 
 ```
 
@@ -157,7 +156,7 @@ beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n(
   
 ```{r}
 
-na.omit(beers_brewery_merge_style) %>%  ggplot(aes(x = ABV, y = IBU, color=brew_style)) + geom_point() + geom_smooth(method = "lm")  +  labs(title ="ABV vs. IBU")
+na.omit(beers_brewery_merge_style) %>%  ggplot(aes(x = ABV, y = IBU, color=brew_style)) + geom_point() + geom_smooth(method = "lm")  +  theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') +  labs(title ="ABV vs. IBU")
 
 ```
 
@@ -174,7 +173,7 @@ summary(beers_brewery_merge_style[beers_brewery_merge_style$brew_style == "Ale",
 summary(beers_brewery_merge_style[beers_brewery_merge_style$brew_style == "Other",c("ABV","IBU")])
 
 
-beers_brewery_merge_style %>% ggplot(aes(x=ABV)) + geom_histogram() + facet_wrap(~brew_style)
+beers_brewery_merge_style %>% ggplot(aes(x=ABV)) + geom_histogram(fill = "#cb4b16")  +  theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + facet_wrap(~brew_style)
 
 ```
 ## Modeling the classification of Style based on ABV and IBU
@@ -214,7 +213,9 @@ MeanAcc = colMeans(knn_test(ipa_ales_only,c("IBU","ABV"),c("brew_style"), .7, 10
 which.max(MeanAcc)
 max(MeanAcc)
 
-plot(seq(1,50,1),MeanAcc,type="l",main="Accuracy vs. K", xlab="K Size", ylab="Accuracy")
+knn_result_df = data.frame(seq(1,50,1),MeanAcc)
+ knn_result_df %>% ggplot(aes(x=knn_result_df$seq.1..50..1.,y=knn_result_df$MeanAcc)) + geom_line(stat = "identity", color="#cb4b16")  +  theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') + labs(title="Accuracy vs. K", x="K Size", y="Accuracy")
+
 
 
 ```
@@ -263,7 +264,7 @@ data_with_imputed_ibus  %>%
   ggplot(aes(ABV, IBU_imputed, color = imputed_ind)) +
     theme(legend.title = element_blank()) +
     geom_point() +
-    facet_wrap(~brew_style) +
+    facet_wrap(~brew_style) + theme_solarized_2(light=FALSE) + scale_colour_solarized('blue') +  
     labs(x="ABV", 
          y="IBU",
          title="ABV vs. IBU by Beer Style")
@@ -284,7 +285,7 @@ data_with_imputed_ibus %>%
   dplyr::summarise(med_IBU = median(IBU_imputed, na.rm = TRUE)) %>%
   ggplot(aes(reorder(State, -med_IBU, FUN="median"), med_IBU)) +
     theme(axis.text.x = element_text(angle = 90)) +
-    geom_bar(stat = "identity") +  labs(x="States", 
+    geom_bar(stat = "identity", fill = "#cb4b16") + theme_solarized_2(light=FALSE) + scale_colour_solarized('blue')  +  labs(x="States", 
          y="Median IBU",
          title="Median IBUs by State")
 ```
