@@ -1,0 +1,291 @@
+---
+title: "Beer Industry Analysis for Budweiser"
+author: "Jorge Olmos and Jonathan Roach"
+date: "10/25/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tm) #text mining library provides the stopwords() function
+library(tidyr)
+library(plyr)
+library(jsonlite)
+library(dplyr)
+library(tidyverse)
+library(RCurl)
+library(e1071)
+library(caret)
+library(ggplot2)
+library(kableExtra)
+library(class)
+library(caret)
+library(e1071)
+library(modelr)
+```
+
+## Overview
+
+
+  In this document we will explore the overall trends in regards to Alcohol By Volume (ABV) and Iternational Bitterness Units (IBU) for the craft beer industry. We looked at which states have the largest craft brewery presence, as well as the overall trends between ABV and IBU.
+
+
+## Initial State Analysis
+
+
+  We wanted to begin by examining the total number of breweries present in each state. Additionally, we wanted to check out if there were any particular regional trends. As the data indicates Colorado and California appear to have the largest number of breweries, while the North/South Dakota, Washington D.C. and West Virginia appear to have the least number of breweries.
+  
+```{r}
+beers_data = read.csv("Beers.csv", header = TRUE);
+brewery_data = read.csv("Breweries.csv", header = TRUE);
+colnames(brewery_data)[1] = "Brewery_id"
+colnames(beers_data)[1] = "beer_name"
+colnames(brewery_data)[2] = "brewery_name"
+state_count <- brewery_data %>% group_by(State) %>% dplyr::summarize(count=n())  
+state_count %>% ggplot() + geom_bar(aes(y=count,x=reorder(State, -count)), stat = "identity") + theme(axis.text.x = element_text(angle = 90)) 
+```
+
+
+## Median Alcohol Content By State
+
+  Next we wanted to explore the relationship between alcohol content for each of the state. To do so we put together both the brewery dataset and beer dataset provided. After summarizing the data it seems that Washington D.C. and Kentucky have the beer with the highest Alcohol by Volume, while New Jersey and Utah happen to have among the lowest Alcohol by Volume.
+  
+```{r}
+
+beers_brewery_merge = merge(beers_data,brewery_data,"Brewery_id")
+beers_with_abv <- beers_brewery_merge[!is.na(beers_brewery_merge$ABV),] #removing na's from ABV column
+ABV_STATE <- aggregate(x = beers_with_abv[c("ABV")], by = beers_with_abv[c("State")], FUN = median)
+ABV_STATE %>% ggplot(aes(x=reorder(State, -ABV), y=ABV)) + theme(axis.text.x = element_text(angle = 90)) +
+  geom_bar(stat="identity") +  labs(title ="ABV By State", x= "State", y = "Acohol By Volume" )
+
+```
+
+
+
+
+## International Bitterness Units By State
+
+  Similarly we looked at the Iternational Bitterness Units for each of the states. In this case Maine and West Virginia had the highest median values for IBUs, while Kansas and Wisconsin seemmed to have the least. 
+
+
+```{r}
+beers_with_ibu <- beers_brewery_merge[!is.na(beers_brewery_merge$IBU),] #removing na's from IBU column
+IBU_STATE <- aggregate(x = beers_with_ibu[c("IBU")], by = beers_with_ibu[c("State")], FUN = median)
+IBU_STATE %>% ggplot(aes(x=reorder(State, -IBU), y=IBU)) + theme(axis.text.x = element_text(angle = 90)) +
+  geom_bar(stat="identity") +  labs(title ="IBU By State", x= "State", y = "Internal Bitterness Units" )
+
+
+
+```
+
+
+
+
+## Beer with the Highest ABV
+
+  We also wanted to explore the boundaries that each of these breweries were pushing both in terms of Alcohol by Volume and IBU. And with 12.8%, "Lee Hill Series Vol. 5", a Belgian Style Quadrupel Ale, from Boulder, CO, has the most Alcohol by Volume. 
+  
+
+```{r}
+kable(beers_brewery_merge[which.max(beers_brewery_merge$ABV),])
+```
+
+
+## Beer with the Highest IBU
+  
+  The beer with most Internation Bitterness units is the "Bitter B*tch Imperial IPA", from Astoria, OR, with 138 IBUs.
+
+```{r}
+kable(beers_brewery_merge[which.max(beers_brewery_merge$IBU),])
+```
+
+## Thoughts on Craft Alcohol By Volume
+  In looking at the overall distribution of the Alcohol By Volume, we have concluded that the median ABV is around 5.6%,  however this distribution appears to be right skewed with an Mean value of around 6%. We have added a histogram to better represent the distribution of ABV.
+
+```{r}
+
+summary(beers_with_abv$ABV)
+beers_with_abv %>% ggplot(aes(x=ABV)) + geom_histogram() + labs(title="Distribution of beers by ABV", x="Alcohol By Volume", y = "N")
+
+
+
+
+```
+
+## Relationship between Alcohol By Volume and Internal Bitterness Units
+  
+  To begin exploring the relationship between Alcohol By Volume and Bitterness we decided to beging by plotting ABV against IBV. Additionally, we decided to add a linear model to the graph, and sure enough there seems to be a linear relationship between ABV and IBUs 
+
+```{r}
+na.omit(beers_brewery_merge) %>%
+  ggplot(aes(x=ABV, y=IBU)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(title = "Relationship Between Alcohol by Volume and Bitterness")
+```
+
+
+## Categorizing Brews
+  
+  To continue with our analysis we wanted to further sub-divide our dataset into specific 3 categories, IPAs, Ales, and Others. Below is overall distribution for each:
+  
+```{r}
+
+style_detector <- Vectorize(function(input){
+  str = "Other";
+  if(str_detect(input,"(?i)(ipa)|(?i)(india pale ale)")){
+    str = "IPA"
+  }else if(str_detect(input,"(?i)(ale)")){
+    str = "Ale"
+  }
+  return(str);
+})
+
+beers_brewery_merge_style <- beers_brewery_merge %>% mutate(brew_style = style_detector(Style))
+
+kable(beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100))
+
+beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100) %>%
+  ggplot() + geom_bar(aes(y=percent,x=brew_style, fill=brew_style), stat = "identity") 
+
+
+```
+
+## Revisiting ABV vs IBU
+  Now that we have categorized each of the styles, we wanted to re-visit the earlier question of ABV vs IBU. It appears that all styles have a positive trend, however the appear to be shifted upwards or downwards based on their style, as shown below:
+  
+  
+```{r}
+
+na.omit(beers_brewery_merge_style) %>%  ggplot(aes(x = ABV, y = IBU, color=brew_style)) + geom_point() + geom_smooth(method = "lm")  +  labs(title ="ABV vs. IBU")
+
+```
+
+
+## Distribution of ABV By Style
+  
+  Sub-dividing by class reveals that IPAs have a median ABV of 6.8%, while Ales and Other styles have 5.5% and 5.4% respectively. 
+
+```{r}
+
+#na.omit(beers_brewery_merge_style) %>% 
+summary(beers_brewery_merge_style[beers_brewery_merge_style$brew_style == "IPA",c("ABV","IBU")])
+summary(beers_brewery_merge_style[beers_brewery_merge_style$brew_style == "Ale",c("ABV","IBU")])
+summary(beers_brewery_merge_style[beers_brewery_merge_style$brew_style == "Other",c("ABV","IBU")])
+
+
+beers_brewery_merge_style %>% ggplot(aes(x=ABV)) + geom_histogram() + facet_wrap(~brew_style)
+
+```
+## Modeling the classification of Style based on ABV and IBU
+
+  We wanted to investigate how accurately we could predict if a beer is an IPA or an Ale based solely on its ABV and it's IBU. As shown below we can see that our model can predict with an 85% accuracy wether a beer is an IPA or an ALE, assuming the closest 5 nearest neighboring data points 
+
+```{r}
+
+generate_train_indices <- function(data,test_ratio,seed= as.numeric(Sys.time())){
+    set.seed(seed)
+    result <- list();
+    trainInd = sample(seq(1,dim(data)[1],1),round(test_ratio*dim(data)[1]))
+    return(trainInd);
+}
+
+
+knn_test <- function(data,columns,classifications,ratio, iterations, numks){
+  masterAcc = matrix(nrow = iterations, ncol = numks)
+  for(i in 1:iterations){
+    trainIndices = generate_train_indices(data,ratio)
+    train = data.frame(data[trainIndices,])
+    test = data.frame(data[-trainIndices,])
+    for(j in 1:numks){
+      knn_result = knn(train[,columns],test[,columns],train[,classifications], prob = TRUE, k = j)
+      table(knn_result,test[,classifications])
+      CM = confusionMatrix(table(knn_result,test[,classifications]))
+      masterAcc[i,j] = CM$overall[1]
+    }
+  }
+  return(masterAcc)
+}
+
+ipa_ales_only <- na.omit(beers_brewery_merge_style[beers_brewery_merge_style$brew_style!="Other",])
+
+MeanAcc = colMeans(knn_test(ipa_ales_only,c("IBU","ABV"),c("brew_style"), .7, 1000, 50))
+
+which.max(MeanAcc)
+max(MeanAcc)
+
+plot(seq(1,50,1),MeanAcc,type="l",main="Accuracy vs. K", xlab="K Size", ylab="Accuracy")
+
+
+```
+
+
+
+## Predicting missing IBU values
+
+  Given that around 40% of the dataset has missing IBU values, we set out to try to predict IBUs for all data-points with missing values. We began by partioning our data into a 70/30 train and test split. To predict IBUs we used an lm model that looked at ABV and the interaction between State and Brew Style. The model was able to achieve an average prediction of 10 to 11 IBUs of actual values. Below you'll see a graph showing the generated data compared to existing IBUs plotted against AVB. 
+
+```{r}
+
+model_data <- 
+  beers_brewery_merge_style %>%
+  mutate(state2 = fct_lump(State, 15)) %>%
+  filter(!is.na(IBU)) %>% filter(!is.na(ABV))
+
+
+  trainIndices = generate_train_indices(model_data, .7)
+  impute_train = model_data[trainIndices,]
+  impute_test = model_data[-trainIndices,]  
+  model <- impute_train %>% lm(formula = IBU ~ ABV + state2*brew_style)
+  for(i in 1:99){
+    trainIndices = generate_train_indices(model_data, .7)
+    impute_train = model_data[trainIndices,]
+    impute_test = model_data[-trainIndices,] 
+    model <- update(model, . ~ ., data = impute_train)
+  }
+
+trainIndices = generate_train_indices(model_data, .7)
+impute_train = model_data[trainIndices,]
+impute_test = model_data[-trainIndices,]
+
+ model <- impute_train %>% lm(formula = IBU ~ ABV + state2*brew_style)
+ 
+test_with_prediction <- impute_test %>% add_predictions(model) %>% mutate(abs_error=abs(IBU - pred), IBU_imputed = if_else(is.na(IBU), as.numeric(round(pred)), as.numeric(IBU)), imputed_ind = factor(if_else(is.na(IBU), "Imputed IBU", "Real IBU")) )
+
+test_with_prediction %>% summarise(total_abs_err=sum(abs_error),  mean_abs_error = mean(abs_error) ) 
+
+data_with_imputed_ibus <- beers_brewery_merge_style %>%filter(!is.na(ABV)) %>% mutate(state2 = fct_lump(State, 15)) %>%  
+  add_predictions(model) %>% 
+  mutate(abs_error=abs(IBU - pred), IBU_imputed = if_else(is.na(IBU), as.numeric(round(pred)), as.numeric(IBU)), imputed_ind = factor(if_else(is.na(IBU),"Imputed IBU", "Real IBU")) ) 
+
+data_with_imputed_ibus  %>%
+  filter(IBU_imputed > 0) %>%
+  ggplot(aes(ABV, IBU_imputed, color = imputed_ind)) +
+    theme(legend.title = element_blank()) +
+    geom_point() +
+    facet_wrap(~brew_style) +
+    labs(x="ABV", 
+         y="IBU",
+         title="ABV vs. IBU by Beer Style")
+
+
+```
+
+
+## Re-Visiting IBUs by state
+
+  Using our predicted values we re-visited the median IBUs by State. Using our predicted data, both Maine and Florida dropped on median IBUs. We believe that our predictions protects against skewing median values for states that had a large proportion of beers with missing IBUs.
+
+
+```{r}
+
+data_with_imputed_ibus %>%
+ group_by(State) %>%
+  dplyr::summarise(med_IBU = median(IBU_imputed, na.rm = TRUE)) %>%
+  ggplot(aes(reorder(State, -med_IBU, FUN="median"), med_IBU)) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    geom_bar(stat = "identity") +  labs(x="States", 
+         y="Median IBU",
+         title="Median IBUs by State")
+```
+
