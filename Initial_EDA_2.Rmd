@@ -476,11 +476,26 @@ model_data <-
   mutate(state2 = fct_lump(State, 15)) %>%
   filter(!is.na(IBU))
 
+brewery_sizes <- 
+dat %>%
+  group_by(Brewery_id) %>%
+  summarise(beers_brewed=n()) %>%
+  ungroup() %>%
+  mutate(brewery_size = if_else(beers_brewed >= 1 & beers_brewed <= 10, "small", 
+                                if_else(beers_brewed >= 11 & beers_brewed <= 19, "medium", "large")))
+
+
+model_data <- left_join(model_data, brewery_sizes, by="Brewery_id")
+
+
 inds <- sample(nrow(model_data), floor(0.7*nrow(model_data)))
 
 impute_train <- model_data[inds,]
 
 impute_test <- model_data[-inds,]
+
+
+
 
 
 
@@ -535,8 +550,34 @@ results_model_3
 ```
 
 
+```{r}
 
-Looks like that's the most accurate assessment we're going to get without further investigation into where the model is predicting poorly. Let's do that. 
+impute_model_4 <- impute_train %>% lm(formula = IBU ~ ABV + state2*beer_type + brewery_size)
+
+impute_test %>% add_predictions(impute_model_4) %>% mutate(abserror=abs(IBU - pred)) %>% summarise(totalabserr=sum(abserror),  meanabserror = mean(abserror) )
+
+results_model_4 <- impute_test %>% add_predictions(impute_model_4) %>% mutate(abserror=abs(IBU - pred))
+
+results_model_4
+
+```
+
+
+```{r}
+
+impute_model_5 <- impute_train %>% lm(formula = IBU ~ ABV + state2 + brewery_size*beer_type)
+
+impute_test %>% add_predictions(impute_model_5) %>% mutate(abserror=abs(IBU - pred)) %>% summarise(totalabserr=sum(abserror),  meanabserror = mean(abserror) )
+
+results_model_5 <- impute_test %>% add_predictions(impute_model_5) %>% mutate(abserror=abs(IBU - pred))
+
+results_model_5
+
+```
+
+
+
+Looks like model 3 is the most accurate assessment we're going to get without further investigation into where the model is predicting poorly. Let's do that. 
 
 ```{r}
 
@@ -570,3 +611,39 @@ results_model_3 %>%
 
 
 
+```{r}
+
+dat %>%
+  mutate(state2 = fct_lump(State, 15)) %>%
+  add_predictions(impute_model_3) %>%
+  mutate(IBU_imputed = if_else(is.na(IBU), as.numeric(round(pred)), as.numeric(IBU)), 
+         imputed_ind = factor(if_else(is.na(IBU), "Imputed IBU", "Real IBU")) ) %>%
+  filter(IBU_imputed > 0) %>%
+  ggplot(aes(ABV, IBU_imputed, color = imputed_ind)) +
+    theme(legend.title = element_blank()) +
+    geom_point() +
+    facet_wrap(~beer_type) +
+    labs(x="ABV", 
+         y="IBU",
+         title="ABV vs. IBU by Beer Type")
+   
+
+```
+
+
+```{r}
+
+dat %>%
+  mutate(state2 = fct_lump(State, 15)) %>%
+  add_predictions(impute_model_3) %>%
+  mutate(IBU_imputed = if_else(is.na(IBU), as.numeric(round(pred)), as.numeric(IBU)), 
+         imputed_ind = factor(if_else(is.na(IBU), "Imputed IBU", "Real IBU")) ) %>%
+  filter(IBU_imputed > 0) %>%
+  group_by(State) %>%
+  summarise(med_IBU = median(IBU_imputed, na.rm = TRUE)) %>%
+  ggplot(aes(reorder(State, -med_IBU, FUN="median"), med_IBU)) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    geom_bar(stat = "identity")
+   
+
+```
