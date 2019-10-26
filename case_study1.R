@@ -66,6 +66,20 @@ summary(no_na$ABV)
 no_na %>% ggplot(aes(x = ABV, y = IBU)) + geom_point()
 
 
+trainIndices = sample(1:dim(iris)[1], round(.7*dim(iris)[1]))
+train = data.frame(iris[trainIndices,])
+test = data.frame(iris[-trainIndices,])
+
+dim(train)
+dim(test)
+dim(train[,c("ABV")])
+
+dim(train$brew_style)
+
+head(iris)
+
+classifications = knn(train[,c(1)],test[,c(1)],train$Species, prob = TRUE, k = 5)
+
 
   
 

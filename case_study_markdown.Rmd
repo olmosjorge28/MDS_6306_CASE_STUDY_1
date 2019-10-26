@@ -2,10 +2,11 @@
 title: "Case Study 1"
 author: "Jorge Olmos, Jonathan Roach"
 date: "10/19/2019"
-output:
-  slidy_presentation: default
-  beamer_presentation: default
-  ioslides_presentation: default
+#output:
+ # slidy_presentation: default
+  #beamer_presentation: default
+  #ioslides_presentation: default
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -27,22 +28,38 @@ colnames(brewery_data)[1] = "Brewery_id"
 colnames(beers_data)[1] = "beer_name"
 colnames(brewery_data)[2] = "brewery_name"
 beers_brewery_merge = merge(beers_data,brewery_data,"Brewery_id")
-beers_brewery_merge = na.omit(beers_brewery_merge)
+beers_brewery_merge_omit = na.omit(beers_brewery_merge)
 ```
 
 ## How many breweries are present in each state?
 
 ```{r brewery_data, echo = TRUE}
 library(knitr)
-state_count <- beers_brewery_merge %>% group_by(State) %>% tally()
-kable(state_count, booktabs = T) %>% kable_styling(font_size = 7,position = "left")
+##state_count <- beers_brewery_merge %>% group_by(State) %>% tally() %>% arrange(desc(n))
+state_count <- brewery_data %>% group_by(State) %>% tally() %>% arrange(desc(n))
+kable(state_count, booktabs = T) %>% kable_styling(font_size = 12,position = "center")
+clip <- pipe("pbcopy", "w")
+write.csv(state_count,file = "breweries_by_state.csv")
+write.table(state_count, file=clip)
+close(clip)
+#writeClipboard(kable(state_count, booktabs = T) %>% kable_styling(font_size = 12,position = "center"))
 ```
 
+
+## First Set of Breweries
+
+```{r}
+
+head(beers_brewery_merge, n=6)
+kable(head(beers_brewery_merge, n=6))  %>% kable_styling(font_size = 12,position = "center")
+kable(tail(beers_brewery_merge, n=6))  %>% kable_styling(font_size = 12,position = "center")
+
+```
 
 ## Median ABV and IBU for each state. Plot a bar chart to compare.
 
 ```{r}
-ABV_IBU_STATE <- aggregate(x = beers_brewery_merge[c("ABV","IBU")], by = beers_brewery_merge[c("State")], FUN = median, na.action = na.rm)
+ABV_IBU_STATE <- aggregate(x = beers_brewery_merge_omit[c("ABV","IBU")], by = beers_brewery_merge_omit[c("State")], FUN = median, na.action = na.rm)
 kable(ABV_IBU_STATE, booktabs = T) %>% kable_styling(font_size = 7,position = "left")
 
 ```
@@ -52,15 +69,16 @@ kable(ABV_IBU_STATE, booktabs = T) %>% kable_styling(font_size = 7,position = "l
 ## ABV By State
 
 ```{r, out.width='95%'}
-p<-ggplot(data=ABV_IBU_STATE, aes(x=State, y=ABV)) +
-  geom_bar(stat="identity") +  labs(title ="ABV By State")
+p<-ABV_IBU_STATE %>% ggplot(aes(x=reorder(State, -ABV), y=ABV)) + theme(axis.text.x = element_text(angle = 90)) +
+  geom_bar(stat="identity") +  labs(title ="ABV By State", x= "State", y = "Acohol By Volume" )
 p
+
 ```
 
 ## IBU By State
 ```{r, out.width='95%'}
-p<-ggplot(data=ABV_IBU_STATE, aes(x=State, y=IBU)) +
-  geom_bar(stat="identity") + labs(title ="IBU By State")
+p<-ABV_IBU_STATE %>% ggplot(aes(x=reorder(State, -IBU), y=IBU)) + theme(axis.text.x = element_text(angle = 90)) +
+  geom_bar(stat="identity") +  labs(title ="IBU By State", x="State", y ="Internation Bitterness Units")
 p
 
 ```
@@ -72,6 +90,7 @@ p
 
 ```{r, echo = TRUE}
 kable(beers_brewery_merge[which.max(beers_brewery_merge$ABV),]) #KY
+kable(beers_brewery_merge[which.max(beers_brewery_merge$ABV),])
 
 ```
 
@@ -87,6 +106,9 @@ kable(beers_brewery_merge[which.max(beers_brewery_merge$IBU),]) #OR
 
 ```{r}
 summary(beers_brewery_merge$ABV)
+sd(beers_brewery_merge$ABV)
+beers_brewery_merge %>% ggplot(aes(x=ABV)) + geom_histogram() + labs(title="Distribution of beers by ABV", x="Alcohol By Volume", y = "N")
+
 ```
 
 
@@ -97,3 +119,126 @@ summary(beers_brewery_merge$ABV)
 beers_brewery_merge %>% ggplot(aes(x = ABV, y = IBU)) + geom_point() + geom_smooth(method = "lm") +  labs(title ="ABV vs. IBU")
 ```
 
+
+## Classifying IPA, Ale, and Other
+
+```{r}
+head(beers_brewery_merge, n = 100)
+
+
+beers_brewery_merge %>% filter(grepl("(?i)(ale)",beers_brewery_merge$Style))  %>% filter(!grepl("(?i)(india pale ale)",Style))
+
+beers_brewery_merge %>% filter(grepl("(?i)(ipa)|(?i)(india pale ale)",beers_brewery_merge$Style))
+
+style_detector <- Vectorize(function(input){
+  str = "Other";
+  if(str_detect(input,"(?i)(ipa)|(?i)(india pale ale)")){
+    str = "IPA"
+  }else if(str_detect(input,"(?i)(ale)")){
+    str = "Ale"
+  }
+  return(str);
+})
+
+beers_brewery_merge_style <- beers_brewery_merge %>% mutate(brew_style = style_detector(Style))
+
+p<-beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100) %>%
+  ggplot() + geom_bar(aes(y=count,x=brew_style, fill=brew_style), stat = "identity") 
+
+p
+
+na.omit(beers_brewery_merge_style) %>%  ggplot(aes(x = ABV, y = IBU, color=brew_style)) + geom_point() + geom_smooth(method = "lm")  +  labs(title ="ABV vs. IBU")
+
+
+```
+
+
+
+
+## Running KNN on the data model
+```{r}
+
+library(class)
+library(caret)
+library(e1071)
+head(beers_brewery_merge_style)
+beers_with_ibu <- beers_brewery_merge_style[!is.na(beers_brewery_merge_style$IBU),]
+beers_with_abv <- beers_brewery_merge_style[!is.na(beers_brewery_merge_style$ABV),]
+
+generate_train_indices <- function(data,test_ratio,seed= as.numeric(Sys.time())){
+    set.seed(seed)
+    result <- list();
+    trainInd = sample(seq(1,dim(data)[1],1),round(test_ratio*dim(data)[1]))
+    return(trainInd);
+}
+
+set.seed(1)
+splitPerc = .7
+iterations = 3
+numks = 90
+
+masterAcc = matrix(nrow = iterations, ncol = numks)
+
+generate_train_indices(beers_with_ibu,.7)
+
+
+knn_test <- function(data,columns,classifications,ratio, iterations, numks){
+  masterAcc = matrix(nrow = iterations, ncol = numks)
+  for(i in 1:iterations){
+    trainIndices = generate_train_indices(data,ratio)
+    train = data.frame(data[trainIndices,])
+    test = data.frame(data[-trainIndices,])
+    for(j in 1:numks){
+      knn_result = knn(train[,columns],test[,columns],train[,classifications], prob = TRUE, k = j)
+      table(knn_result,test[,classifications])
+      CM = confusionMatrix(table(knn_result,test[,classifications]))
+      masterAcc[i,j] = CM$overall[1]
+    }
+  }
+  return(masterAcc)
+}
+  
+ MeanAcc = colMeans(knn_test(omitted_nas,c("IBU","ABV"),c("brew_style"), .7, 100, 50))
+ 
+ which.max(MeanAcc)
+ max(MeanAcc)
+ MeanAcc[36]
+ 
+ plot(seq(1,50,1),MeanAcc,type="l",main="Accuracy vs. K", xlab="K Size", ylab="Accuracy")
+
+
+
+create_model <- function(train_data,columns,classifications){
+    model <- naiveBayes(train_data[,columns],train_data[,classifications])
+    return(model)
+}
+
+test_model <- function(model,test_data,columns,classifications){
+    CM = confusionMatrix(table(predict(model,test_data[,columns]),test_data[,classifications]))
+    return(c(CM$overall[1],CM$byClass[1],CM$byClass[2]))
+}
+
+create_and_test_model <- function(dataset,columns,classifications,ratio,seed = as.numeric(Sys.time())){
+    train_indeces <- generate_train_indices(dataset,ratio,seed);
+    train_data <- dataset[train_indeces,]
+    test_data <- dataset[-train_indeces,]
+    return(test_model(create_model(train_data,columns,classifications),test_data,columns,classifications))
+}
+
+prediction <- function(dataset,columns,classifications,ratio,iterations){
+    master_acc = matrix(nrow = iterations)
+    master_specificity = matrix(nrow = iterations)
+    master_sensitivity = matrix(nrow = iterations)
+
+    for(i in 1:iterations){
+        test_result = create_and_test_model(dataset,columns,classifications,ratio)
+        master_acc[i] = test_result[1]
+        master_sensitivity[i] = test_result[2]
+        master_specificity[i] = test_result[3]
+    }
+    return(c(colMeans(master_acc),colMeans(master_specificity),colMeans(master_sensitivity)))
+}
+
+
+prediction(omitted_nas,c("IBU","ABV"),c("brew_style"), .7, 100)
+```
