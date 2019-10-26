@@ -143,10 +143,14 @@ style_detector <- Vectorize(function(input){
 
 beers_brewery_merge_style <- beers_brewery_merge %>% mutate(brew_style = style_detector(Style))
 
+p<-beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100) %>%
+  ggplot() + geom_bar(aes(y=count,x=brew_style, fill=brew_style), stat = "identity") 
+
 beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100)
 
 p<-beers_brewery_merge_style %>% group_by(brew_style) %>% dplyr::summarize(count=n()) %>% mutate(percent=(count/sum(count))*100) %>%
   ggplot() + geom_bar(aes(y=percent,x=brew_style, fill=brew_style), stat = "identity") 
+
 
 p
 
@@ -169,12 +173,22 @@ beers_with_ibu <- beers_brewery_merge_style[!is.na(beers_brewery_merge_style$IBU
 beers_with_abv <- beers_brewery_merge_style[!is.na(beers_brewery_merge_style$ABV),]
 omitted_nas <- na.omit(beers_brewery_merge_style)
 
+
 generate_train_indices <- function(data,test_ratio,seed= as.numeric(Sys.time())){
     set.seed(seed)
     result <- list();
     trainInd = sample(seq(1,dim(data)[1],1),round(test_ratio*dim(data)[1]))
     return(trainInd);
 }
+
+set.seed(1)
+splitPerc = .7
+iterations = 3
+numks = 90
+
+masterAcc = matrix(nrow = iterations, ncol = numks)
+
+generate_train_indices(beers_with_ibu,.7)
 
 
 knn_test <- function(data,columns,classifications,ratio, iterations, numks){
@@ -192,6 +206,8 @@ knn_test <- function(data,columns,classifications,ratio, iterations, numks){
   }
   return(masterAcc)
 }
+  
+ MeanAcc = colMeans(knn_test(omitted_nas,c("IBU","ABV"),c("brew_style"), .7, 100, 50))
  head(omitted_nas)
  MeanAcc = colMeans(knn_test(omitted_nas,c("IBU","ABV"),c("brew_style"), .7, 1000, 50))
  
@@ -200,6 +216,9 @@ knn_test <- function(data,columns,classifications,ratio, iterations, numks){
  MeanAcc[36]
  
  plot(seq(1,50,1),MeanAcc,type="l",main="Accuracy vs. K", xlab="K Size", ylab="Accuracy")
+
+
+
  
  ipa_ales_only <- omitted_nas[omitted_nas$brew_style!="Other",]
  
@@ -246,6 +265,10 @@ prediction <- function(dataset,columns,classifications,ratio,iterations){
     return(c(colMeans(master_acc),colMeans(master_specificity),colMeans(master_sensitivity)))
 }
 
+
+
+prediction(omitted_nas,c("IBU","ABV"),c("brew_style"), .7, 100)
+```
 
 prediction(omitted_nas,c(4,5),c("brew_style"), .7, 100)
 ```
@@ -309,4 +332,3 @@ plot_usmap(data = state_count, values = State, color = "red") +
 
 
 ```
-

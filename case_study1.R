@@ -115,8 +115,6 @@ prediction <- function(dataset,columns,classifications,ratio,iterations){
 
 
 prediction(iris,c(1,2),c("Species"), .7, 100)
-
-
   
 
 
